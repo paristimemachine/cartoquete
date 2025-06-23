@@ -16,6 +16,7 @@
     <script type="module" src="js/searchAD65.js"></script>
     <script type="module" src="js/searchAD81.js"></script>
     <script type="module" src="js/favorites.js"></script>
+    <script type="module" src="js/connexion.js"></script>
     
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -34,6 +35,54 @@
             <span class="search-icon">&#128269;</span>
         </button>
         <span id="filter-favorites" class="star" style="cursor: pointer; font-size: 24px; padding-left: 12px; color: burlywood;" title="Cartes Favorites">&#9733;</span>
+
+        <div id="authSection">
+        <!-- Bouton de connexion, visible si l'utilisateur n'est pas connecté -->
+        <button id="loginButton" class="login-button" style="margin-left:12px; padding:6px 12px; cursor:pointer;">
+            Connexion
+        </button>
+
+        <!-- Menu utilisateur, qui s'affiche une fois connecté. Il contient un bouton icône pour le menu déroulant. -->
+        <div id="userMenu" style="display:none; position: relative; margin-left: 12px;">
+            <!-- Bouton avec icône utilisateur pour ouvrir/fermer le menu déroulant -->
+            <button id="userMenuToggle" style="background: none; border: none; cursor: pointer; padding: 0; line-height: 0;">
+            <img src="img/user-icon.svg" alt="Menu utilisateur" style="height: 30px; width: 30px; border-radius: 50%; vertical-align: middle;">
+            </button>
+            
+            <!-- Le menu déroulant, caché par défaut -->
+            <div id="userDropdown" style="display: none; position: absolute; right: 0; top: 120%; background-color: white; min-width: 220px; box-shadow: 0 8px 16px rgba(0,0,0,0.2); z-index: 1001; padding: 15px; border-radius: 5px; border: 1px solid #ccc; text-align: left;">
+            <div id="userInfo" style="margin-bottom: 10px;">
+                <p style="margin: 0 0 8px 0;"><strong>Nom:</strong> <span id="userName"></span></p>
+                <p style="margin: 0;"><strong>ID:</strong> <span id="userId"></span></p>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
+            <ul style="list-style: none; padding: 0; margin: 0;">
+                <li><a href="#" id="settingsLink" style="display: block; padding: 8px 0; text-decoration: none; color: #333;">Paramètres</a></li>
+                <li><a href="#" id="logoutButton" style="display: block; padding: 8px 0; text-decoration: none; color: #333;">Déconnexion</a></li>
+            </ul>
+            </div>
+            <script>
+                (function() {
+                    const userMenuToggle = document.getElementById('userMenuToggle');
+                    const userDropdown = document.getElementById('userDropdown');
+                    const userMenu = document.getElementById('userMenu');
+
+                    userMenuToggle.addEventListener('click', function (event) {
+                        event.stopPropagation();
+                        const isVisible = userDropdown.style.display === 'block';
+                        userDropdown.style.display = isVisible ? 'none' : 'block';
+                    });
+
+                    window.addEventListener('click', function (event) {
+                        if (userDropdown.style.display === 'block' && !userMenu.contains(event.target)) {
+                            userDropdown.style.display = 'none';
+                        }
+                    });
+                })();
+            </script>
+        </div>
+        </div>  
+
     </header>
 
     <nav class="navbar">
@@ -127,5 +176,7 @@
         }
 
     </script>
+
+
 </body>
 </html>
