@@ -74,7 +74,9 @@ function showModal({ title, highres, uri, key, record }) {
   imgWrapper.className = 'modal-image-wrapper';
 
   const img = document.createElement('img');
-  img.src = highres;
+  // Utiliser l'URL .highres pour l'affichage dans la modale
+  const displayUrl = uri ? `https://gallica.bnf.fr/ark:/12148/${uri}.highres` : highres;
+  img.src = displayUrl;
   img.alt = title;
   imgWrapper.appendChild(img);
 
@@ -113,7 +115,9 @@ function showModal({ title, highres, uri, key, record }) {
 
   // Option Haute Résolution
   const dlHighres = document.createElement('a');
-  dlHighres.href = highres;
+  // URL haute résolution pour téléchargement
+  const highresDownloadUrl = uri ? `https://gallica.bnf.fr/ark:/12148/${uri}.highres` : highres;
+  dlHighres.href = highresDownloadUrl;
   dlHighres.download = title;
   dlHighres.target = '_blank';
   dlHighres.textContent = 'Haute résolution';
@@ -125,20 +129,10 @@ function showModal({ title, highres, uri, key, record }) {
   dlHighres.addEventListener('mouseout', () => dlHighres.style.background = '');
 
   // Option Full HD (lien à formater)
-  // Construction du lien Full HD selon le format IIIF Gallica
-  // Exemple : https://gallica.bnf.fr/iiif/ark:/12148/bpt6k62530371/f12/349,272,923,1346/full/0/native.jpg
-  // Il faut récupérer l'ark (ex: bpt6k62530371) et le numéro de page (ex: f12) depuis extra.uri ou highres
   let fullHdUrl = '#';
   if (uri) {
-    // uri est typiquement de la forme "bpt6k62530371/f12"
-    // On construit l'URL IIIF native.jpg
+    // Construire l'URL IIIF Full HD
     fullHdUrl = `https://gallica.bnf.fr/iiif/ark:/12148/${uri}/f1/full/full/0/native.jpg`;
-  } else if (highres) {
-    // fallback: essayer d'extraire l'ark et la page depuis highres
-    const m = highres.match(/ark:\/12148\/([^/]+)\/(f\d+)/);
-    if (m) {
-      fullHdUrl = `https://gallica.bnf.fr/iiif/ark:/12148/${m[1]}/${m[2]}/f1/full/full/0/native.jpg`;
-    }
   }
   const dlFullhd = document.createElement('a');
   dlFullhd.href = fullHdUrl;
@@ -198,7 +192,7 @@ export function createCardFromRecord(record, container) {
   // Normaliser extraRecordData (tableau ou objet)
   const rawExtra = record['srw:extraRecordData'];
   const extra = Array.isArray(rawExtra) ? rawExtra[0] : (rawExtra || {});
-  const thumb = extra.lowres || extra.highres || 'img/placeholder.png';
+  const thumb = extra.lowres || extra.highres || 'img/placeholder.svg';
   const key = getRecordKey('Gallica', record);
 
   // Créer la card
@@ -453,14 +447,32 @@ export function createCardFromExternalFavorite(ark, source, title, container) {
   h3.textContent = displayTitle;
   card.appendChild(h3);
 
-  // Lien vers Gallica
-  const link = document.createElement('a');
-  link.href = `https://gallica.bnf.fr/ark:/12148/${ark}`;
-  link.target = '_blank';
-  link.textContent = 'Voir sur Gallica';
-  card.appendChild(link);
-
-  // Pas de modal pour les favoris externes (données limitées)
+  // Ajouter l'événement de clic sur l'image pour ouvrir la modale
+  imgCont.addEventListener('click', () => {
+    // Construire l'URL haute résolution pour les favoris externes
+    const highresUrl = `https://gallica.bnf.fr/ark:/12148/${ark}.highres`;
+    
+    // Créer un record factice pour la modale
+    const mockRecord = {
+      'srw:recordData': {
+        'oai_dc:dc': {
+          'dc:title': title
+        }
+      },
+      'srw:extraRecordData': {
+        highres: highresUrl,
+        uri: ark
+      }
+    };
+    
+    showModal({ 
+      title: displayTitle, 
+      highres: highresUrl, 
+      uri: ark,
+      key,
+      record: mockRecord
+    });
+  });
   
   container.appendChild(card);
 }
