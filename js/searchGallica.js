@@ -1,6 +1,7 @@
 import { AppState } from './state.js';
 import { getRecordKey } from './utils.js';
 import { renderResults } from './renderer.js';
+import { ajouterFavori, supprimerFavori } from './favorites.js';
 
 let _searchTerm = '';
 let _nextRecordPosition = 1;
@@ -60,6 +61,8 @@ function showModal({ title, highres, uri, key, record }) {
     } else {
       AppState.favoris.add(key);
       AppState.favoriteRecords.set(key, { source: 'Gallica', record });
+      console.log('Ajout favori Gallica:', key);
+      ajouterFavori(key, 'Gallica');
     }
     modalStar.textContent = AppState.favoris.has(key) ? '★' : '☆';
   });
@@ -76,12 +79,93 @@ function showModal({ title, highres, uri, key, record }) {
   const btnContainer = document.createElement('div');
   btnContainer.className = 'modal-buttons';
 
-  const dl = document.createElement('a');
-  dl.href = highres;
-  dl.download = title;
-  dl.target = '_blank';
-  dl.textContent = 'Télécharger';
-  btnContainer.appendChild(dl);
+  // Bouton Notice Gallica
+  const noticeBtn = document.createElement('a');
+  noticeBtn.className = 'modal-notice-btn';
+  noticeBtn.href = `https://gallica.bnf.fr/ark:/12148/${uri}`;
+  noticeBtn.target = '_blank';
+  noticeBtn.textContent = 'Notice';
+  btnContainer.appendChild(noticeBtn);
+
+  // Bouton Télécharger avec menu déroulant
+  const dlContainer = document.createElement('div');
+  dlContainer.className = 'modal-download-container';
+  dlContainer.style.position = 'relative';
+  dlContainer.style.display = 'inline-block';
+
+  const dlBtn = document.createElement('button');
+  dlBtn.textContent = 'Télécharger ▼';
+  dlBtn.className = 'modal-download-btn';
+  dlBtn.style.cursor = 'pointer';
+
+  // Menu déroulant
+  const dlMenu = document.createElement('div');
+  dlMenu.className = 'modal-download-menu';
+  dlMenu.style.display = 'none';
+  dlMenu.style.position = 'absolute';
+  dlMenu.style.background = '#fff';
+  dlMenu.style.border = '1px solid #ccc';
+  dlMenu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+  dlMenu.style.zIndex = '10';
+  dlMenu.style.minWidth = '160px';
+
+  // Option Haute Résolution
+  const dlHighres = document.createElement('a');
+  dlHighres.href = highres;
+  dlHighres.download = title;
+  dlHighres.target = '_blank';
+  dlHighres.textContent = 'Haute résolution';
+  dlHighres.style.display = 'block';
+  dlHighres.style.padding = '8px 16px';
+  dlHighres.style.textDecoration = 'none';
+  dlHighres.style.color = '#333';
+  dlHighres.addEventListener('mouseover', () => dlHighres.style.background = '#f0f0f0');
+  dlHighres.addEventListener('mouseout', () => dlHighres.style.background = '');
+
+  // Option Full HD (lien à formater)
+  // Construction du lien Full HD selon le format IIIF Gallica
+  // Exemple : https://gallica.bnf.fr/iiif/ark:/12148/bpt6k62530371/f12/349,272,923,1346/full/0/native.jpg
+  // Il faut récupérer l'ark (ex: bpt6k62530371) et le numéro de page (ex: f12) depuis extra.uri ou highres
+  let fullHdUrl = '#';
+  if (uri) {
+    // uri est typiquement de la forme "bpt6k62530371/f12"
+    // On construit l'URL IIIF native.jpg
+    fullHdUrl = `https://gallica.bnf.fr/iiif/ark:/12148/${uri}/f1/full/full/0/native.jpg`;
+  } else if (highres) {
+    // fallback: essayer d'extraire l'ark et la page depuis highres
+    const m = highres.match(/ark:\/12148\/([^/]+)\/(f\d+)/);
+    if (m) {
+      fullHdUrl = `https://gallica.bnf.fr/iiif/ark:/12148/${m[1]}/${m[2]}/f1/full/full/0/native.jpg`;
+    }
+  }
+  const dlFullhd = document.createElement('a');
+  dlFullhd.href = fullHdUrl;
+  dlFullhd.download = title + '_fullhd';
+  dlFullhd.target = '_blank';
+  dlFullhd.textContent = 'Full HD';
+  dlFullhd.style.display = 'block';
+  dlFullhd.style.padding = '8px 16px';
+  dlFullhd.style.textDecoration = 'none';
+  dlFullhd.style.color = '#333';
+  dlFullhd.addEventListener('mouseover', () => dlFullhd.style.background = '#f0f0f0');
+  dlFullhd.addEventListener('mouseout', () => dlFullhd.style.background = '');
+
+  dlMenu.appendChild(dlHighres);
+  dlMenu.appendChild(dlFullhd);
+
+  dlBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dlMenu.style.display = dlMenu.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // Fermer le menu si clic ailleurs
+  document.addEventListener('click', () => {
+    dlMenu.style.display = 'none';
+  });
+
+  dlContainer.appendChild(dlBtn);
+  dlContainer.appendChild(dlMenu);
+  btnContainer.appendChild(dlContainer);
 
   if (uri) {
     const geo = document.createElement('a');
@@ -99,12 +183,7 @@ function showModal({ title, highres, uri, key, record }) {
   titleEl.textContent = title;
   modal.appendChild(titleEl);
 
-  const noteLink = document.createElement('a');
-  noteLink.className = 'modal-note';
-  noteLink.href = `https://gallica.bnf.fr/ark:/12148/${uri}`;
-  noteLink.target = '_blank';
-  noteLink.textContent = 'Voir la notice Gallica';
-  modal.appendChild(noteLink);
+
 
   backdrop.appendChild(modal);
   document.body.appendChild(backdrop);
@@ -148,9 +227,13 @@ export function createCardFromRecord(record, container) {
     if (AppState.favoris.has(key)) {
       AppState.favoris.delete(key);
       AppState.favoriteRecords.delete(key);
+      supprimerFavori(key);
+      console.log('Suppression favori Gallica:', key);
     } else {
       AppState.favoris.add(key);
       AppState.favoriteRecords.set(key, { source: 'Gallica', record });
+      console.log('Ajout favori Gallica:', key);
+      ajouterFavori(key, 'Gallica');
     }
     star.textContent = AppState.favoris.has(key) ? '★' : '☆';
   });

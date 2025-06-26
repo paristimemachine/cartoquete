@@ -3,6 +3,7 @@ let totalResults = 0;
 let chargementEnCours = false;
 let nextPage = 1;
 let favoris = new Set();
+let external_favorites = new Set();
 
 // Structure pour compter les objets par producteurs
 let objectsCount = {

@@ -10,10 +10,13 @@ export function renderResults() {
   container.innerHTML = '';
 
   let items;
+  let external_items;
   if (AppState.showFavorites) {
     items = Array.from(AppState.favoriteRecords.values());
+    external_items = Array.from(AppState.externe_favoriteRecords.values());
   } else {
     items = AppState.records;
+    external_items = [];
   }
 
   items.forEach(item => {
@@ -24,4 +27,15 @@ export function renderResults() {
       case 'AD81':    renderAD81(item.record, container);    break;
     }
   });
+
+  external_items.forEach(item => {
+    // switch (item.source) {
+    //   case 'Gallica': renderGallica(item.record, container); break;
+    //   case 'AD31':    renderAD31(item.record, container);    break;
+    //   case 'AD65':    renderAD65(item.record, container);    break;
+    //   case 'AD81':    renderAD81(item.record, container);    break;
+    // }
+    console.log("Externe favoris non implémentés :", item);
+  });
+
 }

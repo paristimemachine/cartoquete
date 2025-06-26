@@ -99,8 +99,8 @@ async function loadUserData() {
 
     for (const fav of favoris) {
         if (fav.ark && fav.source) {
-            AppState.favoris.add(fav.ark);
-            AppState.favoriteRecords.set(fav.ark, { source: fav.source });
+            AppState.externe_favoris.add(fav.ark);
+            AppState.externe_favoriteRecords.set(fav.ark, { source: fav.source });
         }
     }
 
