@@ -1,5 +1,6 @@
 import { AppState } from './state.js';
 import { renderResults } from './renderer.js';
+import { loadAndDisplayExternalFavorites } from './searchGallica.js';
 
 const favBtn = document.getElementById('filter-favorites');
 if (!favBtn) {
@@ -14,10 +15,16 @@ if (!favBtn) {
   };
   updateStar();
 
-  favBtn.addEventListener('click', () => {
+  favBtn.addEventListener('click', async () => {
     AppState.showFavorites = !AppState.showFavorites;
     favBtn.classList.toggle('active', AppState.showFavorites);
     updateStar();
+    
+    // Si on affiche les favoris et qu'il y a des favoris externes, les charger
+    if (AppState.showFavorites && AppState.externe_favoris.size > 0) {
+      await loadAndDisplayExternalFavorites();
+    }
+    
     renderResults();
 
   });

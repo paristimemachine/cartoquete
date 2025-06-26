@@ -58,6 +58,8 @@ function showModal({ title, highres, uri, key, record }) {
     if (AppState.favoris.has(key)) {
       AppState.favoris.delete(key);
       AppState.favoriteRecords.delete(key);
+      supprimerFavori(key);
+      console.log('Suppression favori Gallica:', key);
     } else {
       AppState.favoris.add(key);
       AppState.favoriteRecords.set(key, { source: 'Gallica', record });
@@ -363,5 +365,154 @@ export async function loadMoreGallica() {
     console.error('Erreur loadMore:', err);
   } finally {
     _loading = false;
+  }
+}
+
+/**
+ * Récupère les métadonnées d'un document Gallica via OAI
+ */
+async function fetchGallicaMetadata(ark) {
+  try {
+    const url = `https://gallica.bnf.fr/services/OAIRecord?ark=${ark}`;
+    const response = await fetch(url);
+    const xmlText = await response.text();
+    
+    // Parser le XML
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+    
+    // Extraire le titre
+    const titleElement = xmlDoc.querySelector('dc\\:title, title');
+    const title = titleElement ? titleElement.textContent : 'Titre non disponible';
+    
+    return { title };
+  } catch (error) {
+    console.error('Erreur lors de la récupération des métadonnées:', error);
+    return { title: 'Titre non disponible' };
+  }
+}
+
+/**
+ * Récupère l'URL du thumbnail pour un document Gallica
+ */
+function getGallicaThumbnailUrl(ark) {
+  return `https://gallica.bnf.fr/ark%3A%2F12148%2F${ark}/f1.thumbnail`;
+}
+
+/**
+ * Crée une carte pour un favori externe (sans les données complètes du record)
+ */
+export function createCardFromExternalFavorite(ark, source, title, container) {
+  const key = ark; // Pour les favoris externes, on utilise directement l'ark comme clé
+  
+  // Créer la card
+  const card = document.createElement('div');
+  card.className = 'card';
+  
+  const imgCont = document.createElement('div');
+  imgCont.className = 'image-container';
+
+  // Image principale (thumbnail)
+  const img = document.createElement('img');
+  img.src = getGallicaThumbnailUrl(ark);
+  img.alt = title;
+  img.onerror = () => { img.src = 'img/placeholder.svg'; }; // Fallback si l'image ne charge pas
+  imgCont.appendChild(img);
+
+  // Logo Gallica
+  const logo = document.createElement('img');
+  logo.src = 'img/logo_gallica.png';
+  logo.className = 'logo-overlay';
+  imgCont.appendChild(logo);
+
+  // Étoile favoris (toujours pleine pour les favoris externes)
+  const star = document.createElement('span');
+  star.className = 'star-overlay';
+  star.textContent = '★';
+  star.style.cursor = 'pointer';
+  star.addEventListener('click', async e => {
+    e.stopPropagation();
+    // Supprimer des favoris externes
+    AppState.externe_favoris.delete(key);
+    AppState.externe_favoriteRecords.delete(key);
+    
+    // Supprimer du serveur
+    await supprimerFavori(key);
+    console.log('Suppression favori externe Gallica:', key);
+    
+    // Rafraîchir l'affichage
+    renderResults();
+  });
+  imgCont.appendChild(star);
+
+  card.appendChild(imgCont);
+
+  // Titre
+  const displayTitle = title.length > 70 ? title.slice(0, 70) + ' [...]' : title;
+  const h3 = document.createElement('h3');
+  h3.textContent = displayTitle;
+  card.appendChild(h3);
+
+  // Lien vers Gallica
+  const link = document.createElement('a');
+  link.href = `https://gallica.bnf.fr/ark:/12148/${ark}`;
+  link.target = '_blank';
+  link.textContent = 'Voir sur Gallica';
+  card.appendChild(link);
+
+  // Pas de modal pour les favoris externes (données limitées)
+  
+  container.appendChild(card);
+}
+
+/**
+ * Charge et affiche les favoris externes de l'utilisateur
+ */
+export async function loadAndDisplayExternalFavorites() {
+  console.log('Chargement des favoris externes...');
+  
+  // Vider les données existantes des favoris externes
+  AppState.externe_favoriteRecords.clear();
+  
+  // Traiter chaque favori externe
+  const promises = Array.from(AppState.externe_favoris).map(async (ark) => {
+    try {
+      // Récupérer les métadonnées
+      const metadata = await fetchGallicaMetadata(ark);
+      
+      // Stocker dans AppState
+      AppState.externe_favoriteRecords.set(ark, {
+        source: 'Gallica',
+        record: {
+          ark: ark,
+          title: metadata.title,
+          thumbnailUrl: getGallicaThumbnailUrl(ark)
+        }
+      });
+      
+      console.log(`Favori externe chargé: ${ark} - ${metadata.title}`);
+    } catch (error) {
+      console.error(`Erreur lors du chargement du favori ${ark}:`, error);
+      
+      // Stocker avec des données minimales en cas d'erreur
+      AppState.externe_favoriteRecords.set(ark, {
+        source: 'Gallica',
+        record: {
+          ark: ark,
+          title: 'Titre non disponible',
+          thumbnailUrl: getGallicaThumbnailUrl(ark)
+        }
+      });
+    }
+  });
+  
+  // Attendre que tous les favoris soient chargés
+  await Promise.all(promises);
+  
+  console.log('Tous les favoris externes ont été chargés');
+  
+  // Rafraîchir l'affichage si on est en mode favoris
+  if (AppState.showFavorites) {
+    renderResults();
   }
 }
