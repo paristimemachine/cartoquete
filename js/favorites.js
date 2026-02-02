@@ -37,26 +37,30 @@ export async function ajouterFavori(ark, source = "Gallica") {
   const token = localStorage.getItem("ptm_token");
   if (!token) return;
 
-  // Tu peux récupérer les données actuelles d'abord :
-  const res = await fetch("https://api.ptm.huma-num.fr/auth/data", {
+  // Récupérer les données actuelles de l'application cartoquete
+  const res = await fetch("https://api.ptm.huma-num.fr/auth/app/cartoquete/data", {
     headers: { "Authorization": `Bearer ${token}` }
   });
   const fullData = await res.json();
 
-  const favoris = fullData?.cartoquete?.favoris || [];
+  const favoris = fullData?.favoris || [];
+
+  // Vérifier que le favori n'existe pas déjà
+  const existeDeja = favoris.some(fav => fav.ark === ark);
+  if (existeDeja) {
+    console.log("Favori déjà présent :", ark);
+    return;
+  }
 
   // Ajout du nouveau favori
   favoris.push({ ark, source });
 
   const payload = {
     ...fullData,
-    cartoquete: {
-      ...fullData.cartoquete,
-      favoris: favoris
-    }
+    favoris: favoris
   };
 
-  await fetch("https://api.ptm.huma-num.fr/auth/data", {
+  await fetch("https://api.ptm.huma-num.fr/auth/app/cartoquete/data", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -64,6 +68,10 @@ export async function ajouterFavori(ark, source = "Gallica") {
     },
     body: JSON.stringify(payload)
   });
+
+  // Mettre à jour l'état local
+  AppState.externe_favoris.add(ark);
+  AppState.externe_favoriteRecords.set(ark, { source });
 
   console.log("Favori ajouté :", ark);
 }
@@ -72,27 +80,24 @@ export async function supprimerFavori(ark) {
   const token = localStorage.getItem("ptm_token");
   if (!token) return;
 
-  // Récupère les données existantes
-  const res = await fetch("https://api.ptm.huma-num.fr/auth/data", {
+  // Récupérer les données existantes de l'application cartoquete
+  const res = await fetch("https://api.ptm.huma-num.fr/auth/app/cartoquete/data", {
     headers: { "Authorization": `Bearer ${token}` }
   });
   const fullData = await res.json();
 
-  const favoris = fullData?.cartoquete?.favoris || [];
+  const favoris = fullData?.favoris || [];
 
   // Filtrage du favori à supprimer
   const favorisFiltrés = favoris.filter(fav => fav.ark !== ark);
 
   const payload = {
     ...fullData,
-    cartoquete: {
-      ...fullData.cartoquete,
-      favoris: favorisFiltrés
-    }
+    favoris: favorisFiltrés
   };
 
   // Envoi de la mise à jour au backend
-  await fetch("https://api.ptm.huma-num.fr/auth/data", {
+  await fetch("https://api.ptm.huma-num.fr/auth/app/cartoquete/data", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -100,6 +105,10 @@ export async function supprimerFavori(ark) {
     },
     body: JSON.stringify(payload)
   });
+
+  // Mettre à jour l'état local
+  AppState.externe_favoris.delete(ark);
+  AppState.externe_favoriteRecords.delete(ark);
 
   console.log(`Favori supprimé : ${ark}`);
 }

@@ -2,7 +2,7 @@ import { AppState } from './state.js';
 
 document.getElementById("loginButton").addEventListener("click", function () {
     console.log("connexion via ORCID");
-    const redirectUrl = "https://dev.ptm.huma-num.fr/cartoquete";  // ou une URL spécifique dans l'app si besoin
+    const redirectUrl = "https://app.ptm.huma-num.fr/cartoquete";  // ou une URL spécifique dans l'app si besoin
     window.location.href = `https://api.ptm.huma-num.fr/auth/login?redirect_url=${encodeURIComponent(redirectUrl)}`;
 });
 
@@ -75,7 +75,7 @@ document.getElementById("logoutButton").addEventListener("click", function () {
 
 // 5. Bouton login : redirection ORCID
 document.getElementById("loginButton").addEventListener("click", function () {
-    const redirectUrl = "https://dev.ptm.huma-num.fr/cartoquete";  // à adapter si besoin
+    const redirectUrl = "https://app.ptm.huma-num.fr/cartoquete";  // à adapter si besoin
     window.location.href = `https://api.ptm.huma-num.fr/auth/login?redirect_url=${encodeURIComponent(redirectUrl)}`;
 });
 
@@ -87,13 +87,13 @@ async function loadUserData() {
     console.log("Chargement des données utilisateur avec token :", token);
     if (!token) return;
 
-    const res = await fetch("https://api.ptm.huma-num.fr/auth/data", {
+    const res = await fetch("https://api.ptm.huma-num.fr/auth/app/cartoquete/data", {
         headers: {
-        "Authorization": `Bearer ${token}`
+            "Authorization": `Bearer ${token}`
         }
     });
     const fullData = await res.json();
-    const favoris = fullData?.cartoquete?.favoris || [];
+    const favoris = fullData?.favoris || [];
 
     console.log("Favoris chargés :", favoris);
 
@@ -103,5 +103,72 @@ async function loadUserData() {
             AppState.externe_favoriteRecords.set(fav.ark, { source: fav.source });
         }
     }
-
 }
+
+// Nouvelle fonction pour sauvegarder les favoris
+async function saveFavorites() {
+    const token = localStorage.getItem("ptm_token");
+    if (!token) return;
+
+    // Convertir les favoris en format attendu par l'API
+    const favoris = [];
+    for (const ark of AppState.externe_favoris) {
+        const record = AppState.externe_favoriteRecords.get(ark);
+        if (record) {
+            favoris.push({
+                ark: ark,
+                source: record.source
+            });
+        }
+    }
+
+    const data = { favoris: favoris };
+
+    try {
+        const res = await fetch("https://api.ptm.huma-num.fr/auth/app/cartoquete/data", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+            console.log("Favoris sauvegardés avec succès");
+        } else {
+            console.error("Erreur lors de la sauvegarde des favoris");
+        }
+    } catch (error) {
+        console.error("Erreur réseau lors de la sauvegarde :", error);
+    }
+}
+
+// Fonction utilitaire pour ajouter un favori
+function addToFavorites(ark, source) {
+    AppState.externe_favoris.add(ark);
+    AppState.externe_favoriteRecords.set(ark, { source: source });
+    
+    // Sauvegarder automatiquement si l'utilisateur est connecté
+    if (localStorage.getItem("ptm_token")) {
+        saveFavorites();
+    }
+}
+
+// Fonction utilitaire pour supprimer un favori
+function removeFromFavorites(ark) {
+    AppState.externe_favoris.delete(ark);
+    AppState.externe_favoriteRecords.delete(ark);
+    
+    // Sauvegarder automatiquement si l'utilisateur est connecté
+    if (localStorage.getItem("ptm_token")) {
+        saveFavorites();
+    }
+}
+
+// Exporter les fonctions pour utilisation dans d'autres modules
+window.cartoqueteAuth = {
+    addToFavorites,
+    removeFromFavorites,
+    saveFavorites
+};
